@@ -1,45 +1,104 @@
 {% extends "base.html" %}
-{% block title %}Desk · Paper Trader{% endblock %}
+{% block title %}Desk · PaperTrader{% endblock %}
 {% block content %}
-<p class="hero-line">Your simulated desk</p>
-<p class="lede">
-  ${{ portfolio.starting_cash|floatformat:0 }} fake cash, real prices.
-  Active strategy: <strong>{{ strategy.name }}</strong> — {{ strategy.blurb }}
-</p>
+<div class="desk-head">
+  <div>
+    <p class="hero-line">Trading desk</p>
+    <p class="lede tight">
+      Strategy <strong>{{ strategy.name }}</strong> · watch
+      <span data-watch-label>{{ portfolio.watch_symbol }}</span>
+      {% if watch_price %}<span class="mono"> ${{ watch_price|floatformat:2 }}</span>{% endif %}
+    </p>
+  </div>
+  <div class="metrics compact">
+    <div class="metric">
+      <span class="label">Equity</span>
+      <span class="value">${{ total|floatformat:2 }}</span>
+    </div>
+    <div class="metric">
+      <span class="label">Cash</span>
+      <span class="value">${{ portfolio.cash|floatformat:2 }}</span>
+    </div>
+    <div class="metric">
+      <span class="label">P&amp;L</span>
+      <span class="value {% if pnl >= 0 %}gain{% else %}loss{% endif %}">
+        {% if pnl >= 0 %}+{% endif %}${{ pnl|floatformat:2 }}
+        <small>({{ pnl_pct|floatformat:1 }}%)</small>
+      </span>
+    </div>
+  </div>
+</div>
 
 {% if price_error %}
 <ul class="flash"><li class="error">Price feed: {{ price_error }}</li></ul>
 {% endif %}
 
-<div class="grid">
-  <section class="panel span-7">
-    <h2>Portfolio</h2>
-    <div class="metrics">
-      <div class="metric">
-        <span class="label">Cash</span>
-        <span class="value">${{ portfolio.cash|floatformat:2 }}</span>
-      </div>
-      <div class="metric">
-        <span class="label">Total value</span>
-        <span class="value">${{ total|floatformat:2 }}</span>
-      </div>
-      <div class="metric">
-        <span class="label">P&amp;L</span>
-        <span class="value {% if pnl >= 0 %}gain{% else %}loss{% endif %}">
-          {% if pnl >= 0 %}+{% endif %}${{ pnl|floatformat:2 }}
-        </span>
-      </div>
-    </div>
+<div class="quote-tape">
+  {% for q in quote_rows %}
+  <button type="button" class="tape-item" data-set-watch="{{ q.symbol }}">
+    <span>{{ q.symbol }}</span>
+    <span class="mono">${{ q.price|floatformat:2 }}</span>
+  </button>
+  {% endfor %}
+</div>
 
-    <h2 style="margin-top:1.25rem">Positions</h2>
+<div class="grid platform">
+  <section class="panel span-8 chart-panel">
+    <div class="panel-toolbar">
+      <h2>Chart · <span data-watch-label>{{ portfolio.watch_symbol }}</span></h2>
+      <form class="inline watch-form" method="post" action="{% url 'set_watch' %}">
+        {% csrf_token %}
+        <input type="text" name="symbol" value="{{ portfolio.watch_symbol }}" maxlength="16" aria-label="Watch symbol">
+        <button type="submit" class="ghost sm">Load</button>
+      </form>
+    </div>
+    <div id="watch-chart" class="chart-box" data-symbol="{{ portfolio.watch_symbol }}" data-days="120" data-height="400"></div>
+  </section>
+
+  <section class="panel span-4">
+    <h2>Order ticket</h2>
+    <form class="stack" method="post" action="{% url 'manual_trade' %}">
+      {% csrf_token %}
+      <label>Action</label>
+      {{ trade_form.action }}
+      <label>Symbol</label>
+      {{ trade_form.symbol }}
+      <label>Amount</label>
+      {{ trade_form.amount }}
+      <p class="help">Buy = dollars. Sell = shares.</p>
+      <div class="actions">
+        <button type="submit">Submit</button>
+      </div>
+    </form>
+
+    <h2 style="margin-top:1.2rem">Bot</h2>
+    <form class="stack" method="post" action="{% url 'set_strategy' %}">
+      {% csrf_token %}
+      <label>Active strategy</label>
+      {{ strategy_form.strategy }}
+      <div class="actions"><button type="submit" class="ghost">Apply</button></div>
+    </form>
+    <div class="actions" style="margin-top:0.75rem">
+      <form method="post" action="{% url 'tick' %}">{% csrf_token %}
+        <button type="submit">Run tick</button>
+      </form>
+      <form method="post" action="{% url 'reset' %}" onsubmit="return confirm('Reset portfolio?');">{% csrf_token %}
+        <button type="submit" class="danger ghost">Reset</button>
+      </form>
+    </div>
+    <p class="help">{{ strategy.blurb }}</p>
+  </section>
+
+  <section class="panel span-6">
+    <h2>Positions</h2>
     {% if positions %}
     <table>
       <thead>
-        <tr><th>Symbol</th><th class="num">Shares</th><th class="num">Price</th><th class="num">Value</th></tr>
+        <tr><th>Symbol</th><th class="num">Shares</th><th class="num">Mark</th><th class="num">Value</th></tr>
       </thead>
       <tbody>
         {% for p in positions %}
-        <tr>
+        <tr class="click-row" data-set-watch="{{ p.symbol }}">
           <td>{{ p.symbol }}</td>
           <td class="num">{{ p.shares|floatformat:4 }}</td>
           <td class="num">{% if p.price %}${{ p.price|floatformat:2 }}{% else %}—{% endif %}</td>
@@ -49,72 +108,58 @@
       </tbody>
     </table>
     {% else %}
-    <p class="lede" style="margin:0">No positions yet. Run a tick or buy manually.</p>
+    <p class="lede tight">Flat — no open positions.</p>
     {% endif %}
-
-    <div class="actions">
-      <form method="post" action="{% url 'tick' %}">{% csrf_token %}
-        <button type="submit">Run strategy tick</button>
-      </form>
-      <form method="post" action="{% url 'reset' %}" onsubmit="return confirm('Reset to starting cash?');">{% csrf_token %}
-        <button type="submit" class="danger">Reset portfolio</button>
-      </form>
-      <a class="btn ghost" href="{% url 'backtest' %}">Backtest strategies</a>
-    </div>
   </section>
 
-  <section class="panel span-5">
-    <h2>Active strategy</h2>
-    <form class="stack" method="post" action="{% url 'set_strategy' %}">
-      {% csrf_token %}
-      <label for="id_strategy">Strategy</label>
-      {{ strategy_form.strategy }}
-      <div class="actions"><button type="submit">Use this strategy</button></div>
-    </form>
-    <p class="help" style="margin-top:0.75rem">{{ strategy.lesson }}</p>
-
-    <h2 style="margin-top:1.4rem">Manual trade</h2>
-    <form class="stack" method="post" action="{% url 'manual_trade' %}">
-      {% csrf_token %}
-      <label>Action</label>
-      {{ trade_form.action }}
-      <label>Symbol</label>
-      {{ trade_form.symbol }}
-      <label>Amount</label>
-      {{ trade_form.amount }}
-      <p class="help">Buy = dollars to spend. Sell = share count.</p>
-      <div class="actions"><button type="submit">Submit trade</button></div>
-    </form>
-  </section>
-
-  <section class="panel span-12">
-    <h2>Recent trades</h2>
+  <section class="panel span-6">
+    <h2>Blotter</h2>
     {% if recent_trades %}
-    <table>
-      <thead>
-        <tr>
-          <th>When</th><th>Side</th><th>Symbol</th>
-          <th class="num">Shares</th><th class="num">Price</th>
-          <th>Strategy</th><th>Note</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for t in recent_trades %}
-        <tr>
-          <td>{{ t.created_at|date:"Y-m-d H:i" }}</td>
-          <td><span class="tag">{{ t.action }}</span></td>
-          <td>{{ t.symbol }}</td>
-          <td class="num">{{ t.shares|floatformat:4 }}</td>
-          <td class="num">${{ t.price|floatformat:2 }}</td>
-          <td>{{ t.strategy|default:"—" }}</td>
-          <td>{{ t.note }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th><th>Side</th><th>Sym</th>
+            <th class="num">Qty</th><th class="num">Px</th><th>Via</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in recent_trades %}
+          <tr>
+            <td>{{ t.created_at|date:"m-d H:i" }}</td>
+            <td><span class="tag {% if t.action == 'BUY' %}tag-buy{% else %}tag-sell{% endif %}">{{ t.action }}</span></td>
+            <td>{{ t.symbol }}</td>
+            <td class="num">{{ t.shares|floatformat:4 }}</td>
+            <td class="num">${{ t.price|floatformat:2 }}</td>
+            <td>{{ t.strategy|default:"—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% else %}
-    <p class="lede" style="margin:0">No trades yet.</p>
+    <p class="lede tight">No fills yet.</p>
     {% endif %}
   </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll("[data-set-watch]").forEach((el) => {
+  el.addEventListener("click", () => {
+    const sym = el.getAttribute("data-set-watch");
+    const input = document.querySelector(".watch-form input[name=symbol]");
+    if (input) input.value = sym;
+    const chart = document.getElementById("watch-chart");
+    if (chart && window.PaperCharts) {
+      chart.dataset.symbol = sym;
+      PaperCharts.loadWatch(chart, sym, 120);
+      document.querySelectorAll("[data-watch-label]").forEach((n) => (n.textContent = sym));
+      const tradeSym = document.querySelector("#id_symbol");
+      if (tradeSym) tradeSym.value = sym;
+    }
+  });
+});
+</script>
 {% endblock %}

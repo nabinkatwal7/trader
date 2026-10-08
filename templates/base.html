@@ -4,21 +4,32 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}Paper Trader{% endblock %}</title>
+  <title>{% block title %}PaperTrader{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'trading/app.css' %}">
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
+  <script src="{% static 'trading/charts.js' %}" defer></script>
+  {% block head %}{% endblock %}
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <div class="bg-wash" aria-hidden="true"></div>
   <header class="top">
     <a class="brand" href="{% url 'dashboard' %}">Paper<span>Trader</span></a>
+    {% if user.is_authenticated %}
     <nav>
       <a href="{% url 'dashboard' %}">Desk</a>
       <a href="{% url 'strategies' %}">Strategies</a>
       <a href="{% url 'backtest' %}">Backtest</a>
     </nav>
+    <div class="userbar">
+      <span class="user-chip">{{ user.username }}</span>
+      <form method="post" action="{% url 'logout' %}" class="inline">{% csrf_token %}
+        <button type="submit" class="ghost sm">Log out</button>
+      </form>
+    </div>
+    {% endif %}
   </header>
 
   {% if messages %}
@@ -36,5 +47,6 @@
   <footer class="foot">
     Simulated money · real Yahoo Finance prices · for learning, not advice
   </footer>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

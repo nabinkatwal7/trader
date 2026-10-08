@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Sign up · PaperTrader{% endblock %}
+{% block body_class %}auth{% endblock %}
+{% block content %}
+<section class="auth-panel">
+  <p class="brand-hero">Paper<span>Trader</span></p>
+  <p class="lede">Create an account — you get $1,000 paper cash to learn with.</p>
+  <form class="stack" method="post">
+    {% csrf_token %}
+    {% for field in form %}
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% if field.errors %}<p class="help loss">{{ field.errors|striptags }}</p>{% endif %}
+      {% if field.help_text %}<p class="help">{{ field.help_text }}</p>{% endif %}
+    {% endfor %}
+    <div class="actions">
+      <button type="submit">Create account</button>
+      <a class="btn ghost" href="{% url 'login' %}">I already have one</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

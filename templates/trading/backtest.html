@@ -1,14 +1,11 @@
 {% extends "base.html" %}
-{% block title %}Backtest · Paper Trader{% endblock %}
+{% block title %}Backtest · PaperTrader{% endblock %}
 {% block content %}
-<p class="hero-line">Replay the past</p>
-<p class="lede">
-  Walk a strategy day-by-day over recent history with simulated cash.
-  Does not touch your live paper portfolio.
-</p>
+<p class="hero-line">Strategy lab</p>
+<p class="lede">Replay rules over recent history. Equity curve + buy/sell markers on the primary ticker.</p>
 
-<div class="grid">
-  <section class="panel span-5">
+<div class="grid platform">
+  <section class="panel span-4">
     <h2>Setup</h2>
     <form class="stack" method="post">
       {% csrf_token %}
@@ -25,16 +22,16 @@
     </form>
   </section>
 
-  <section class="panel span-7">
+  <section class="panel span-8">
     <h2>Result</h2>
     {% if result %}
-    <div class="metrics">
+    <div class="metrics compact">
       <div class="metric">
         <span class="label">Strategy</span>
-        <span class="value" style="font-size:1.1rem;font-family:var(--sans)">{{ result.strategy.name }}</span>
+        <span class="value small">{{ result.strategy.name }}</span>
       </div>
       <div class="metric">
-        <span class="label">Final value</span>
+        <span class="label">Final</span>
         <span class="value">${{ result.outcome.ending_value|floatformat:2 }}</span>
       </div>
       <div class="metric">
@@ -51,8 +48,16 @@
         <span class="value">{{ result.outcome.trade_count }}</span>
       </div>
     </div>
+    <div id="backtest-chart" class="chart-box" data-height="340" style="margin-top:0.85rem"></div>
+    <p class="help">Teal area = portfolio equity · gray line = {{ result.outcome.symbols.0 }} price · arrows = signals</p>
+    {% else %}
+    <p class="lede tight">Run a backtest to see the equity curve.</p>
+    {% endif %}
+  </section>
 
-    <h2 style="margin-top:1.2rem">End holdings</h2>
+  {% if result %}
+  <section class="panel span-6">
+    <h2>End holdings</h2>
     <p>Cash ${{ result.outcome.final_cash|floatformat:2 }}</p>
     {% if result.final_rows %}
     <table>
@@ -69,22 +74,22 @@
       </tbody>
     </table>
     {% endif %}
+  </section>
 
-    <h2 style="margin-top:1.2rem">Trade log</h2>
+  <section class="panel span-6">
+    <h2>Trade log</h2>
     <div class="event-log">
       {% for e in result.outcome.events %}
       <div>{{ e.date }}  {{ e.action }}  {{ e.shares|floatformat:4 }} {{ e.symbol }} @ ${{ e.price|floatformat:2 }}</div>
       {% empty %}
-      <div>No trades fired in this window.</div>
+      <div>No trades in this window.</div>
       {% endfor %}
     </div>
-    {% else %}
-    <p class="lede" style="margin:0">Pick a strategy and run it. Compare against Buy &amp; Hold as your baseline.</p>
-    {% endif %}
   </section>
+  {% endif %}
 
   <section class="panel span-12">
-    <h2>Recent backtests</h2>
+    <h2>Your recent backtests</h2>
     {% if history %}
     <table>
       <thead>
@@ -109,8 +114,12 @@
       </tbody>
     </table>
     {% else %}
-    <p class="lede" style="margin:0">None yet.</p>
+    <p class="lede tight">None yet.</p>
     {% endif %}
   </section>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>window.__BACKTEST_CHART__ = {{ chart_json|safe }};</script>
 {% endblock %}

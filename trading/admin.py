@@ -16,16 +16,16 @@ class TradeInline(admin.TabularInline):
 
 @admin.register(Portfolio)
 class PortfolioAdmin(admin.ModelAdmin):
-    list_display = ("name", "cash", "active_strategy", "updated_at")
+    list_display = ("user", "cash", "active_strategy", "watch_symbol", "updated_at")
     inlines = [PositionInline, TradeInline]
 
 
 @admin.register(Trade)
 class TradeAdmin(admin.ModelAdmin):
-    list_display = ("created_at", "action", "symbol", "shares", "price", "strategy")
+    list_display = ("created_at", "portfolio", "action", "symbol", "shares", "price", "strategy")
     list_filter = ("action", "strategy")
 
 
 @admin.register(BacktestResult)
 class BacktestResultAdmin(admin.ModelAdmin):
-    list_display = ("created_at", "strategy", "days", "starting_cash", "ending_value", "trade_count")
+    list_display = ("created_at", "user", "strategy", "days", "starting_cash", "ending_value", "trade_count")

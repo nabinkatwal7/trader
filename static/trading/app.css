@@ -33,10 +33,18 @@ body {
 }
 
 .top {
-  display: flex; align-items: baseline; justify-content: space-between;
-  gap: 1rem; padding: 1.25rem 1.5rem 0.5rem;
-  max-width: 1100px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding: 1rem 1.5rem 0.5rem;
+  max-width: 1280px; margin: 0 auto;
 }
+.top nav { margin-right: auto; margin-left: 1.5rem; }
+.userbar { display: flex; align-items: center; gap: 0.6rem; }
+.user-chip {
+  font-family: var(--mono); font-size: 0.82rem;
+  padding: 0.2rem 0.55rem; border: 1px solid var(--line); color: var(--teal-deep);
+}
+form.inline { display: inline; margin: 0; }
+button.sm, .btn.sm { padding: 0.35rem 0.65rem; font-size: 0.8rem; }
 .brand {
   font-family: var(--display);
   font-size: 1.85rem; font-weight: 700;
@@ -51,13 +59,13 @@ nav a {
 }
 nav a:hover { color: var(--teal-deep); }
 
-main { max-width: 1100px; margin: 0 auto; padding: 1rem 1.5rem 3rem; }
+main { max-width: 1280px; margin: 0 auto; padding: 0.75rem 1.5rem 3rem; }
 .foot {
-  max-width: 1100px; margin: 0 auto; padding: 0 1.5rem 2rem;
+  max-width: 1280px; margin: 0 auto; padding: 0 1.5rem 2rem;
   color: var(--muted); font-size: 0.85rem;
 }
 
-.flash { list-style: none; padding: 0; margin: 0.5rem auto 0; max-width: 1100px; padding-inline: 1.5rem; }
+.flash { list-style: none; padding: 0; margin: 0.5rem auto 0; max-width: 1280px; padding-inline: 1.5rem; }
 .flash li {
   padding: 0.65rem 0.9rem; margin-bottom: 0.4rem;
   border-left: 3px solid var(--teal); background: var(--panel);
@@ -151,8 +159,65 @@ form.stack input, form.stack select, form.stack textarea {
   display: inline-block; font-family: var(--mono); font-size: 0.75rem;
   padding: 0.1rem 0.4rem; border: 1px solid var(--line); color: var(--teal-deep);
 }
+.tag-buy { color: var(--gain); border-color: #b7dcc5; }
+.tag-sell { color: var(--loss); border-color: #f0c4bf; }
+
+.lede.tight { margin-bottom: 0.75rem; }
+.desk-head {
+  display: flex; justify-content: space-between; gap: 1rem; align-items: flex-end;
+  flex-wrap: wrap; margin-bottom: 0.75rem;
+}
+.metrics.compact { gap: 1.1rem; }
+.metrics.compact .value { font-size: 1.2rem; }
+.metrics.compact .value.small { font-size: 1rem; font-family: var(--sans); }
+.metrics.compact .value small { font-size: 0.75rem; opacity: 0.85; }
+.mono { font-family: var(--mono); }
+
+.quote-tape {
+  display: flex; gap: 0.4rem; overflow-x: auto; margin-bottom: 0.85rem;
+  padding-bottom: 0.2rem;
+}
+.tape-item {
+  background: var(--panel); border: 1px solid var(--line); color: var(--ink);
+  display: flex; flex-direction: column; align-items: flex-start;
+  padding: 0.45rem 0.7rem; min-width: 5.5rem; cursor: pointer;
+}
+.tape-item:hover { border-color: var(--teal); }
+.tape-item span:first-child { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.04em; }
+
+.panel-toolbar {
+  display: flex; justify-content: space-between; align-items: center; gap: 0.75rem;
+  flex-wrap: wrap; margin-bottom: 0.5rem;
+}
+.panel-toolbar h2 { margin: 0; }
+.watch-form input {
+  width: 5.5rem; padding: 0.35rem 0.45rem;
+  border: 1px solid var(--line); font-family: var(--mono); font-size: 0.85rem;
+}
+.chart-box {
+  width: 100%; min-height: 280px; background: #fbfcfb;
+  border: 1px solid var(--line);
+}
+.chart-box.chart-loading { opacity: 0.55; }
+.chart-error { color: var(--loss); padding: 1rem; font-size: 0.9rem; }
+.table-scroll { max-height: 260px; overflow: auto; }
+.click-row { cursor: pointer; }
+.click-row:hover td { background: rgba(15, 110, 86, 0.06); }
+
+body.auth main { display: flex; justify-content: center; padding-top: 2.5rem; }
+.auth-panel {
+  width: min(420px, 100%);
+  background: var(--panel); border: 1px solid var(--line);
+  padding: 1.5rem 1.4rem 1.6rem;
+}
+.brand-hero {
+  font-family: var(--display); font-size: 2rem; font-weight: 700;
+  margin: 0 0 0.35rem; letter-spacing: -0.02em;
+}
+.brand-hero span { color: var(--teal); }
 
 @media (max-width: 800px) {
   .span-4, .span-5, .span-6, .span-7, .span-8 { grid-column: span 12; }
   .top { flex-direction: column; align-items: flex-start; }
+  .top nav { margin-left: 0; }
 }

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Log in · PaperTrader{% endblock %}
+{% block body_class %}auth{% endblock %}
+{% block content %}
+<section class="auth-panel">
+  <p class="brand-hero">Paper<span>Trader</span></p>
+  <p class="lede">Sign in to your simulated desk.</p>
+  <form class="stack" method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <ul class="flash"><li class="error">{{ form.non_field_errors|striptags }}</li></ul>
+    {% endif %}
+    <label for="id_username">Username</label>
+    {{ form.username }}
+    <label for="id_password">Password</label>
+    {{ form.password }}
+    <div class="actions">
+      <button type="submit">Log in</button>
+      <a class="btn ghost" href="{% url 'signup' %}">Create account</a>
+    </div>
+  </form>
+</section>
+{% endblock %}
