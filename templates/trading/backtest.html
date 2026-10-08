@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Backtest · Paper Trader{% endblock %}
+{% block content %}
+<p class="hero-line">Replay the past</p>
+<p class="lede">
+  Walk a strategy day-by-day over recent history with simulated cash.
+  Does not touch your live paper portfolio.
+</p>
+
+<div class="grid">
+  <section class="panel span-5">
+    <h2>Setup</h2>
+    <form class="stack" method="post">
+      {% csrf_token %}
+      <label>Strategy</label>
+      {{ form.strategy }}
+      <label>Symbols</label>
+      {{ form.symbols }}
+      <p class="help">{{ form.symbols.help_text }}</p>
+      <label>Days</label>
+      {{ form.days }}
+      <label>Starting cash</label>
+      {{ form.cash }}
+      <div class="actions"><button type="submit">Run backtest</button></div>
+    </form>
+  </section>
+
+  <section class="panel span-7">
+    <h2>Result</h2>
+    {% if result %}
+    <div class="metrics">
+      <div class="metric">
+        <span class="label">Strategy</span>
+        <span class="value" style="font-size:1.1rem;font-family:var(--sans)">{{ result.strategy.name }}</span>
+      </div>
+      <div class="metric">
+        <span class="label">Final value</span>
+        <span class="value">${{ result.outcome.ending_value|floatformat:2 }}</span>
+      </div>
+      <div class="metric">
+        <span class="label">P&amp;L</span>
+        {% with pnl=result.saved.pnl %}
+        <span class="value {% if pnl >= 0 %}gain{% else %}loss{% endif %}">
+          {% if pnl >= 0 %}+{% endif %}${{ pnl|floatformat:2 }}
+          ({{ result.saved.pnl_pct|floatformat:1 }}%)
+        </span>
+        {% endwith %}
+      </div>
+      <div class="metric">
+        <span class="label">Trades</span>
+        <span class="value">{{ result.outcome.trade_count }}</span>
+      </div>
+    </div>
+
+    <h2 style="margin-top:1.2rem">End holdings</h2>
+    <p>Cash ${{ result.outcome.final_cash|floatformat:2 }}</p>
+    {% if result.final_rows %}
+    <table>
+      <thead><tr><th>Symbol</th><th class="num">Shares</th><th class="num">Last</th><th class="num">Value</th></tr></thead>
+      <tbody>
+        {% for row in result.final_rows %}
+        <tr>
+          <td>{{ row.symbol }}</td>
+          <td class="num">{{ row.shares|floatformat:4 }}</td>
+          <td class="num">${{ row.price|floatformat:2 }}</td>
+          <td class="num">${{ row.value|floatformat:2 }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <h2 style="margin-top:1.2rem">Trade log</h2>
+    <div class="event-log">
+      {% for e in result.outcome.events %}
+      <div>{{ e.date }}  {{ e.action }}  {{ e.shares|floatformat:4 }} {{ e.symbol }} @ ${{ e.price|floatformat:2 }}</div>
+      {% empty %}
+      <div>No trades fired in this window.</div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="lede" style="margin:0">Pick a strategy and run it. Compare against Buy &amp; Hold as your baseline.</p>
+    {% endif %}
+  </section>
+
+  <section class="panel span-12">
+    <h2>Recent backtests</h2>
+    {% if history %}
+    <table>
+      <thead>
+        <tr>
+          <th>When</th><th>Strategy</th><th>Symbols</th><th class="num">Days</th>
+          <th class="num">Start</th><th class="num">End</th><th class="num">P&amp;L %</th><th class="num">Trades</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in history %}
+        <tr>
+          <td>{{ h.created_at|date:"Y-m-d H:i" }}</td>
+          <td>{{ h.strategy }}</td>
+          <td>{{ h.symbols }}</td>
+          <td class="num">{{ h.days }}</td>
+          <td class="num">${{ h.starting_cash|floatformat:0 }}</td>
+          <td class="num">${{ h.ending_value|floatformat:2 }}</td>
+          <td class="num {% if h.pnl >= 0 %}gain{% else %}loss{% endif %}">{{ h.pnl_pct|floatformat:1 }}%</td>
+          <td class="num">{{ h.trade_count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="lede" style="margin:0">None yet.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

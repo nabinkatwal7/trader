@@ -219,4 +219,7 @@ __marimo__/
 
 # Paper trading local state
 portfolio.json
+db.sqlite3
+*.sqlite3
+
 

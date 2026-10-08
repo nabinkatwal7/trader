@@ -22,13 +22,14 @@ class Fill:
     note: str = ""
 
 
-def get_or_create_portfolio() -> Portfolio:
+def get_or_create_portfolio(user) -> Portfolio:
     p, _ = Portfolio.objects.get_or_create(
-        name="paper",
+        user=user,
         defaults={
             "cash": settings.STARTING_CASH,
             "starting_cash": settings.STARTING_CASH,
             "active_strategy": "sma_crossover",
+            "watch_symbol": settings.DEFAULT_SYMBOLS[0],
         },
     )
     return p
@@ -145,6 +146,9 @@ class BacktestOutcome:
     final_cash: float
     final_positions: dict[str, float]
     prices: dict[str, float]
+    equity: list[dict]  # [{time, value}]
+    primary_closes: list[dict]  # [{time, value}] for first symbol
+    markers: list[dict]  # chart markers on primary symbol
 
 
 def run_backtest(
@@ -165,9 +169,16 @@ def run_backtest(
         raise RuntimeError("Not enough overlapping history to backtest.")
 
     aligned = {sym: closes[sym].loc[dates] for sym in closes}
+    primary = list(aligned.keys())[0]
     sim_cash = cash
     positions: dict[str, float] = {}
     events: list[dict] = []
+    equity: list[dict] = []
+    markers: list[dict] = []
+
+    def mark_to_market(day) -> float:
+        px = {sym: float(s.loc[day]) for sym, s in aligned.items()}
+        return sim_cash + sum(shares * px.get(sym, 0.0) for sym, shares in positions.items())
 
     def sim_buy(sym: str, dollars: float, price: float, day) -> None:
         nonlocal sim_cash
@@ -177,6 +188,16 @@ def run_backtest(
         sim_cash -= dollars
         positions[sym] = positions.get(sym, 0.0) + shares
         events.append({"date": str(day.date()), "action": "BUY", "symbol": sym, "shares": shares, "price": price})
+        if sym == primary:
+            markers.append(
+                {
+                    "time": str(day.date()),
+                    "position": "belowBar",
+                    "color": "#1a7a45",
+                    "shape": "arrowUp",
+                    "text": "BUY",
+                }
+            )
 
     def sim_sell_all(sym: str, price: float, day) -> None:
         nonlocal sim_cash
@@ -186,22 +207,34 @@ def run_backtest(
         sim_cash += held * price
         events.append({"date": str(day.date()), "action": "SELL", "symbol": sym, "shares": held, "price": price})
         positions.pop(sym, None)
+        if sym == primary:
+            markers.append(
+                {
+                    "time": str(day.date()),
+                    "position": "aboveBar",
+                    "color": "#b42318",
+                    "shape": "arrowDown",
+                    "text": "SELL",
+                }
+            )
 
     for i in range(len(dates)):
         day = dates[i]
-        # sells
         for sym, series in aligned.items():
             if strategy.signal_at(series, i) == Signal.SELL and positions.get(sym, 0) > 0:
                 sim_sell_all(sym, float(series.iloc[i]), day)
-        # buys
         for sym, series in aligned.items():
             if strategy.signal_at(series, i) == Signal.BUY and sim_cash > 1:
                 fraction = 1.0 if strategy_key == "buy_hold" else settings.BUY_FRACTION
                 sim_buy(sym, sim_cash * fraction, float(series.iloc[i]), day)
+        equity.append({"time": str(day.date()), "value": round(mark_to_market(day), 2)})
 
     prices = {sym: float(s.iloc[-1]) for sym, s in aligned.items()}
     held_val = sum(shares * prices.get(sym, 0.0) for sym, shares in positions.items())
     ending = sim_cash + held_val
+    primary_closes = [
+        {"time": str(ts.date()), "value": float(v)} for ts, v in aligned[primary].items()
+    ]
     return BacktestOutcome(
         strategy=strategy_key,
         symbols=list(aligned.keys()),
@@ -213,14 +246,21 @@ def run_backtest(
         final_cash=sim_cash,
         final_positions=positions,
         prices=prices,
+        equity=equity,
+        primary_closes=primary_closes,
+        markers=markers,
     )
 
 
 def outcome_log(outcome: BacktestOutcome) -> str:
     return json.dumps(
         {
-            "events": outcome.events[-50:],  # cap stored log
+            "events": outcome.events[-50:],
             "final_positions": outcome.final_positions,
             "final_cash": outcome.final_cash,
+            "equity": outcome.equity,
+            "primary_closes": outcome.primary_closes,
+            "markers": outcome.markers,
+            "primary": outcome.symbols[0] if outcome.symbols else "",
         }
     )

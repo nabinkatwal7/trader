@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Strategies · Paper Trader{% endblock %}
+{% block content %}
+<p class="hero-line">How each strategy thinks</p>
+<p class="lede">
+  Same prices, different rules. Read the lesson, then backtest to see which ideas
+  would have made or lost simulated money.
+</p>
+
+<section class="panel span-12">
+  <div class="strategy-list">
+    {% for s in strategies %}
+    <article class="strategy-card">
+      <h3>{{ s.name }} <span class="tag">{{ s.key }}</span></h3>
+      <p class="blurb">{{ s.blurb }}</p>
+      <p class="lesson">{{ s.lesson }}</p>
+    </article>
+    {% endfor %}
+  </div>
+  <div class="actions" style="margin-top:1.25rem">
+    <a class="btn" href="{% url 'backtest' %}">Run a backtest</a>
+    <a class="btn ghost" href="{% url 'dashboard' %}">Back to desk</a>
+  </div>
+</section>
+{% endblock %}

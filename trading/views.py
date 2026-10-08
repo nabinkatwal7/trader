@@ -162,7 +162,21 @@ def backtest_page(request):
                 trade_count=outcome.trade_count,
                 log=outcome_log(outcome),
             )
-            result = {"outcome": outcome, "saved": saved, "strategy": get_strategy(outcome.strategy)}
+            final_rows = [
+                {
+                    "symbol": sym,
+                    "shares": shares,
+                    "price": outcome.prices.get(sym),
+                    "value": shares * outcome.prices.get(sym, 0.0),
+                }
+                for sym, shares in outcome.final_positions.items()
+            ]
+            result = {
+                "outcome": outcome,
+                "saved": saved,
+                "strategy": get_strategy(outcome.strategy),
+                "final_rows": final_rows,
+            }
             messages.success(
                 request,
                 f"Backtest done: ${outcome.ending_value:,.2f} "
