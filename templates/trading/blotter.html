@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Blotter · PaperTrader{% endblock %}
+{% block content %}
+<div class="desk-head reveal">
+  <div>
+    <p class="hero-line">Blotter</p>
+    <p class="lede tight">Every fill in your paper account.</p>
+  </div>
+  <div class="actions" style="margin:0">
+    <a class="btn ghost" href="{% url 'export_trades' %}">Export CSV</a>
+  </div>
+</div>
+
+<div class="grid platform">
+  <section class="panel span-3 reveal delay-1">
+    <h2>Filter</h2>
+    <form class="stack" method="get">
+      <label>Symbol</label>
+      {{ form.symbol }}
+      <label>Side</label>
+      {{ form.action }}
+      <div class="actions"><button type="submit">Apply</button></div>
+    </form>
+    <h2 class="mt">Quick trade</h2>
+    <form class="stack" method="post" action="{% url 'manual_trade' %}">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'blotter' %}">
+      <label>Side</label>{{ trade_form.action }}
+      <label>Symbol</label>{{ trade_form.symbol }}
+      <label>Amount</label>{{ trade_form.amount }}
+      <div class="actions"><button type="submit">Submit</button></div>
+    </form>
+  </section>
+  <section class="panel span-9 reveal delay-1">
+    <h2>Fills</h2>
+    <div class="table-scroll tall">
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th><th>Side</th><th>Sym</th><th class="num">Qty</th>
+            <th class="num">Px</th><th class="num">Fee</th><th class="num">R. P&amp;L</th>
+            <th>Via</th><th>Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in trades %}
+          <tr>
+            <td>{{ t.created_at|date:"Y-m-d H:i" }}</td>
+            <td><span class="tag {% if t.action == 'BUY' %}tag-buy{% else %}tag-sell{% endif %}">{{ t.action }}</span></td>
+            <td>{{ t.symbol }}</td>
+            <td class="num">{{ t.shares|floatformat:4 }}</td>
+            <td class="num">${{ t.price|floatformat:2 }}</td>
+            <td class="num">${{ t.fee|floatformat:2 }}</td>
+            <td class="num {% if t.realized_pnl and t.realized_pnl >= 0 %}gain{% elif t.realized_pnl %}loss{% endif %}">
+              {% if t.realized_pnl != None %}{{ t.realized_pnl|floatformat:2 }}{% else %}—{% endif %}
+            </td>
+            <td>{{ t.strategy|default:"—" }}</td>
+            <td>{{ t.note }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="9">No trades match.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}
