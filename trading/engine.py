@@ -8,8 +8,9 @@ from dataclasses import dataclass
 from django.conf import settings
 from django.db import transaction
 
+from .analytics import max_drawdown_pct
 from .market import fetch_closes, latest_prices
-from .models import Portfolio, Position, Trade
+from .models import EquitySnapshot, Portfolio, Position, Trade, WatchlistItem
 from .strategies import Signal, get_strategy
 
 
@@ -20,10 +21,12 @@ class Fill:
     shares: float
     price: float
     note: str = ""
+    fee: float = 0.0
+    realized_pnl: float | None = None
 
 
 def get_or_create_portfolio(user) -> Portfolio:
-    p, _ = Portfolio.objects.get_or_create(
+    p, created = Portfolio.objects.get_or_create(
         user=user,
         defaults={
             "cash": settings.STARTING_CASH,
@@ -32,29 +35,65 @@ def get_or_create_portfolio(user) -> Portfolio:
             "watch_symbol": settings.DEFAULT_SYMBOLS[0],
         },
     )
+    if created:
+        for sym in settings.DEFAULT_SYMBOLS:
+            WatchlistItem.objects.get_or_create(portfolio=p, symbol=sym)
+        record_snapshot(p, note="open")
     return p
+
+
+def _fee(portfolio: Portfolio, notional: float) -> float:
+    return abs(notional) * (portfolio.fee_bps / 10000.0)
+
+
+def record_snapshot(portfolio: Portfolio, prices: dict[str, float] | None = None, note: str = "") -> EquitySnapshot:
+    if prices is None:
+        equity = portfolio.cash + sum(p.shares * p.avg_cost for p in portfolio.positions.all())
+    else:
+        equity = portfolio.total_value(prices)
+    return EquitySnapshot.objects.create(
+        portfolio=portfolio,
+        equity=equity,
+        cash=portfolio.cash,
+        note=note,
+    )
 
 
 @transaction.atomic
 def buy(portfolio: Portfolio, symbol: str, dollars: float, price: float, note: str = "", strategy: str = "") -> Fill | None:
-    if price <= 0 or dollars <= 0 or dollars > portfolio.cash + 1e-9:
+    if price <= 0 or dollars <= 0:
         return None
-    shares = dollars / price
-    portfolio.cash -= dollars
+    # Reserve fee from cash: spend at most `dollars` on shares+fee combined when possible
+    fee_est = _fee(portfolio, dollars)
+    spend = min(dollars, portfolio.cash)
+    if spend <= fee_est + 0.01:
+        return None
+    notional = spend - fee_est if portfolio.fee_bps else spend
+    fee = _fee(portfolio, notional)
+    notional = spend - fee
+    if notional <= 0 or spend > portfolio.cash + 1e-9:
+        return None
+    shares = notional / price
+    portfolio.cash -= spend
     portfolio.save(update_fields=["cash", "updated_at"])
-    pos, _ = Position.objects.get_or_create(portfolio=portfolio, symbol=symbol, defaults={"shares": 0.0})
-    pos.shares += shares
-    pos.save(update_fields=["shares"])
+    pos, _ = Position.objects.get_or_create(
+        portfolio=portfolio, symbol=symbol, defaults={"shares": 0.0, "avg_cost": 0.0}
+    )
+    new_shares = pos.shares + shares
+    pos.avg_cost = ((pos.shares * pos.avg_cost) + notional) / new_shares if new_shares else price
+    pos.shares = new_shares
+    pos.save(update_fields=["shares", "avg_cost"])
     Trade.objects.create(
         portfolio=portfolio,
         action=Trade.BUY,
         symbol=symbol,
         shares=shares,
         price=price,
+        fee=fee,
         note=note,
         strategy=strategy,
     )
-    return Fill("BUY", symbol, shares, price, note)
+    return Fill("BUY", symbol, shares, price, note, fee=fee)
 
 
 @transaction.atomic
@@ -66,7 +105,11 @@ def sell(portfolio: Portfolio, symbol: str, shares: float, price: float, note: s
     if price <= 0 or shares <= 0 or shares > pos.shares + 1e-9:
         return None
     shares = min(shares, pos.shares)
-    portfolio.cash += shares * price
+    notional = shares * price
+    fee = _fee(portfolio, notional)
+    proceeds = notional - fee
+    realized = (price - pos.avg_cost) * shares - fee
+    portfolio.cash += proceeds
     portfolio.save(update_fields=["cash", "updated_at"])
     pos.shares -= shares
     if pos.shares < 1e-12:
@@ -79,10 +122,12 @@ def sell(portfolio: Portfolio, symbol: str, shares: float, price: float, note: s
         symbol=symbol,
         shares=shares,
         price=price,
+        fee=fee,
         note=note,
         strategy=strategy,
+        realized_pnl=realized,
     )
-    return Fill("SELL", symbol, shares, price, note)
+    return Fill("SELL", symbol, shares, price, note, fee=fee, realized_pnl=realized)
 
 
 def sell_all(portfolio: Portfolio, symbol: str, price: float, note: str = "", strategy: str = "") -> Fill | None:
@@ -97,7 +142,6 @@ def apply_signals(portfolio: Portfolio, closes_map: dict, strategy_key: str, i: 
     strategy = get_strategy(strategy_key)
     fills: list[Fill] = []
 
-    # Sells first to free cash
     for sym, series in closes_map.items():
         idx = len(series) - 1 if i is None else i
         if idx < 0 or idx >= len(series):
@@ -117,7 +161,6 @@ def apply_signals(portfolio: Portfolio, closes_map: dict, strategy_key: str, i: 
         sig = strategy.signal_at(series, idx)
         price = float(series.iloc[idx])
         if sig == Signal.BUY and portfolio.cash > 1:
-            # buy_hold dumps remaining cash into first signal; others use fraction
             fraction = 1.0 if strategy_key == "buy_hold" else settings.BUY_FRACTION
             budget = portfolio.cash * fraction
             f = buy(portfolio, sym, budget, price, note=f"{strategy.name} buy", strategy=strategy_key)
@@ -128,10 +171,14 @@ def apply_signals(portfolio: Portfolio, closes_map: dict, strategy_key: str, i: 
 
 
 def run_tick(portfolio: Portfolio, symbols: list[str] | None = None) -> tuple[list[Fill], dict[str, float]]:
-    symbols = symbols or list(settings.DEFAULT_SYMBOLS)
+    if symbols is None:
+        watched = list(portfolio.watchlist.values_list("symbol", flat=True))
+        symbols = watched or list(settings.DEFAULT_SYMBOLS)
     closes = fetch_closes(symbols, days=90)
     fills = apply_signals(portfolio, closes, portfolio.active_strategy)
-    return fills, latest_prices(closes)
+    prices = latest_prices(closes)
+    record_snapshot(portfolio, prices, note="tick")
+    return fills, prices
 
 
 @dataclass
@@ -146,9 +193,10 @@ class BacktestOutcome:
     final_cash: float
     final_positions: dict[str, float]
     prices: dict[str, float]
-    equity: list[dict]  # [{time, value}]
-    primary_closes: list[dict]  # [{time, value}] for first symbol
-    markers: list[dict]  # chart markers on primary symbol
+    equity: list[dict]
+    primary_closes: list[dict]
+    markers: list[dict]
+    max_drawdown_pct: float
 
 
 def run_backtest(
@@ -157,7 +205,6 @@ def run_backtest(
     days: int = 90,
     cash: float = None,
 ) -> BacktestOutcome:
-    """In-memory replay — does not touch the live paper portfolio."""
     cash = settings.STARTING_CASH if cash is None else cash
     strategy = get_strategy(strategy_key)
     closes = fetch_closes(symbols, days=days)
@@ -190,13 +237,7 @@ def run_backtest(
         events.append({"date": str(day.date()), "action": "BUY", "symbol": sym, "shares": shares, "price": price})
         if sym == primary:
             markers.append(
-                {
-                    "time": str(day.date()),
-                    "position": "belowBar",
-                    "color": "#1a7a45",
-                    "shape": "arrowUp",
-                    "text": "BUY",
-                }
+                {"time": str(day.date()), "position": "belowBar", "color": "#1a7a45", "shape": "arrowUp", "text": "BUY"}
             )
 
     def sim_sell_all(sym: str, price: float, day) -> None:
@@ -209,13 +250,7 @@ def run_backtest(
         positions.pop(sym, None)
         if sym == primary:
             markers.append(
-                {
-                    "time": str(day.date()),
-                    "position": "aboveBar",
-                    "color": "#b42318",
-                    "shape": "arrowDown",
-                    "text": "SELL",
-                }
+                {"time": str(day.date()), "position": "aboveBar", "color": "#b42318", "shape": "arrowDown", "text": "SELL"}
             )
 
     for i in range(len(dates)):
@@ -232,9 +267,8 @@ def run_backtest(
     prices = {sym: float(s.iloc[-1]) for sym, s in aligned.items()}
     held_val = sum(shares * prices.get(sym, 0.0) for sym, shares in positions.items())
     ending = sim_cash + held_val
-    primary_closes = [
-        {"time": str(ts.date()), "value": float(v)} for ts, v in aligned[primary].items()
-    ]
+    primary_closes = [{"time": str(ts.date()), "value": float(v)} for ts, v in aligned[primary].items()]
+    dd = max_drawdown_pct([e["value"] for e in equity])
     return BacktestOutcome(
         strategy=strategy_key,
         symbols=list(aligned.keys()),
@@ -249,18 +283,20 @@ def run_backtest(
         equity=equity,
         primary_closes=primary_closes,
         markers=markers,
+        max_drawdown_pct=dd,
     )
 
 
 def outcome_log(outcome: BacktestOutcome) -> str:
     return json.dumps(
         {
-            "events": outcome.events[-50:],
+            "events": outcome.events[-80:],
             "final_positions": outcome.final_positions,
             "final_cash": outcome.final_cash,
             "equity": outcome.equity,
             "primary_closes": outcome.primary_closes,
             "markers": outcome.markers,
             "primary": outcome.symbols[0] if outcome.symbols else "",
+            "max_drawdown_pct": outcome.max_drawdown_pct,
         }
     )

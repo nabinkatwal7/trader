@@ -1,13 +1,14 @@
-{% extends "base.html" %}
-{% block title %}Desk · PaperTrader{% endblock %}
-{% block content %}
+{% extends "base.html" %} {% block title %}Desk · PaperTrader{% endblock %} {%
+block content %}
 <div class="desk-head">
   <div>
     <p class="hero-line">Trading desk</p>
     <p class="lede tight">
       Strategy <strong>{{ strategy.name }}</strong> · watch
       <span data-watch-label>{{ portfolio.watch_symbol }}</span>
-      {% if watch_price %}<span class="mono"> ${{ watch_price|floatformat:2 }}</span>{% endif %}
+      {% if watch_price %}<span class="mono">
+        ${{ watch_price|floatformat:2 }}</span
+      >{% endif %}
     </p>
   </div>
   <div class="metrics compact">
@@ -30,7 +31,9 @@
 </div>
 
 {% if price_error %}
-<ul class="flash"><li class="error">Price feed: {{ price_error }}</li></ul>
+<ul class="flash">
+  <li class="error">Price feed: {{ price_error }}</li>
+</ul>
 {% endif %}
 
 <div class="quote-tape">
@@ -45,14 +48,32 @@
 <div class="grid platform">
   <section class="panel span-8 chart-panel">
     <div class="panel-toolbar">
-      <h2>Chart · <span data-watch-label>{{ portfolio.watch_symbol }}</span></h2>
-      <form class="inline watch-form" method="post" action="{% url 'set_watch' %}">
+      <h2>
+        Chart · <span data-watch-label>{{ portfolio.watch_symbol }}</span>
+      </h2>
+      <form
+        class="inline watch-form"
+        method="post"
+        action="{% url 'set_watch' %}"
+      >
         {% csrf_token %}
-        <input type="text" name="symbol" value="{{ portfolio.watch_symbol }}" maxlength="16" aria-label="Watch symbol">
+        <input
+          type="text"
+          name="symbol"
+          value="{{ portfolio.watch_symbol }}"
+          maxlength="16"
+          aria-label="Watch symbol"
+        />
         <button type="submit" class="ghost sm">Load</button>
       </form>
     </div>
-    <div id="watch-chart" class="chart-box" data-symbol="{{ portfolio.watch_symbol }}" data-days="120" data-height="400"></div>
+    <div
+      id="watch-chart"
+      class="chart-box"
+      data-symbol="{{ portfolio.watch_symbol }}"
+      data-days="120"
+      data-height="400"
+    ></div>
   </section>
 
   <section class="panel span-4">
@@ -71,18 +92,26 @@
       </div>
     </form>
 
-    <h2 style="margin-top:1.2rem">Bot</h2>
+    <h2 style="margin-top: 1.2rem">Bot</h2>
     <form class="stack" method="post" action="{% url 'set_strategy' %}">
       {% csrf_token %}
       <label>Active strategy</label>
       {{ strategy_form.strategy }}
-      <div class="actions"><button type="submit" class="ghost">Apply</button></div>
+      <div class="actions">
+        <button type="submit" class="ghost">Apply</button>
+      </div>
     </form>
-    <div class="actions" style="margin-top:0.75rem">
-      <form method="post" action="{% url 'tick' %}">{% csrf_token %}
+    <div class="actions" style="margin-top: 0.75rem">
+      <form method="post" action="{% url 'tick' %}">
+        {% csrf_token %}
         <button type="submit">Run tick</button>
       </form>
-      <form method="post" action="{% url 'reset' %}" onsubmit="return confirm('Reset portfolio?');">{% csrf_token %}
+      <form
+        method="post"
+        action="{% url 'reset' %}"
+        onsubmit="return confirm('Reset portfolio?');"
+      >
+        {% csrf_token %}
         <button type="submit" class="danger ghost">Reset</button>
       </form>
     </div>
@@ -94,15 +123,24 @@
     {% if positions %}
     <table>
       <thead>
-        <tr><th>Symbol</th><th class="num">Shares</th><th class="num">Mark</th><th class="num">Value</th></tr>
+        <tr>
+          <th>Symbol</th>
+          <th class="num">Shares</th>
+          <th class="num">Mark</th>
+          <th class="num">Value</th>
+        </tr>
       </thead>
       <tbody>
         {% for p in positions %}
         <tr class="click-row" data-set-watch="{{ p.symbol }}">
           <td>{{ p.symbol }}</td>
           <td class="num">{{ p.shares|floatformat:4 }}</td>
-          <td class="num">{% if p.price %}${{ p.price|floatformat:2 }}{% else %}—{% endif %}</td>
-          <td class="num">{% if p.value %}${{ p.value|floatformat:2 }}{% else %}—{% endif %}</td>
+          <td class="num">
+            {% if p.price %}${{ p.price|floatformat:2 }}{% else %}—{% endif %}
+          </td>
+          <td class="num">
+            {% if p.value %}${{ p.value|floatformat:2 }}{% else %}—{% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -119,15 +157,24 @@
       <table>
         <thead>
           <tr>
-            <th>Time</th><th>Side</th><th>Sym</th>
-            <th class="num">Qty</th><th class="num">Px</th><th>Via</th>
+            <th>Time</th>
+            <th>Side</th>
+            <th>Sym</th>
+            <th class="num">Qty</th>
+            <th class="num">Px</th>
+            <th>Via</th>
           </tr>
         </thead>
         <tbody>
           {% for t in recent_trades %}
           <tr>
             <td>{{ t.created_at|date:"m-d H:i" }}</td>
-            <td><span class="tag {% if t.action == 'BUY' %}tag-buy{% else %}tag-sell{% endif %}">{{ t.action }}</span></td>
+            <td>
+              <span
+                class="tag {% if t.action == 'BUY' %}tag-buy{% else %}tag-sell{% endif %}"
+                >{{ t.action }}</span
+              >
+            </td>
             <td>{{ t.symbol }}</td>
             <td class="num">{{ t.shares|floatformat:4 }}</td>
             <td class="num">${{ t.price|floatformat:2 }}</td>
@@ -142,24 +189,24 @@
     {% endif %}
   </section>
 </div>
-{% endblock %}
-
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script>
-document.querySelectorAll("[data-set-watch]").forEach((el) => {
-  el.addEventListener("click", () => {
-    const sym = el.getAttribute("data-set-watch");
-    const input = document.querySelector(".watch-form input[name=symbol]");
-    if (input) input.value = sym;
-    const chart = document.getElementById("watch-chart");
-    if (chart && window.PaperCharts) {
-      chart.dataset.symbol = sym;
-      PaperCharts.loadWatch(chart, sym, 120);
-      document.querySelectorAll("[data-watch-label]").forEach((n) => (n.textContent = sym));
-      const tradeSym = document.querySelector("#id_symbol");
-      if (tradeSym) tradeSym.value = sym;
-    }
+  document.querySelectorAll("[data-set-watch]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const sym = el.getAttribute("data-set-watch");
+      const input = document.querySelector(".watch-form input[name=symbol]");
+      if (input) input.value = sym;
+      const chart = document.getElementById("watch-chart");
+      if (chart && window.PaperCharts) {
+        chart.dataset.symbol = sym;
+        PaperCharts.loadWatch(chart, sym, 120);
+        document
+          .querySelectorAll("[data-watch-label]")
+          .forEach((n) => (n.textContent = sym));
+        const tradeSym = document.querySelector("#id_symbol");
+        if (tradeSym) tradeSym.value = sym;
+      }
+    });
   });
-});
 </script>
 {% endblock %}
