@@ -1,14 +1,15 @@
-{% extends "base.html" %} {% block title %}Desk · PaperTrader{% endblock %} {%
-block content %}
-<div class="desk-head">
+{% extends "base.html" %}
+{% block title %}Desk · PaperTrader{% endblock %}
+{% block content %}
+<div class="desk-head reveal">
   <div>
     <p class="hero-line">Trading desk</p>
     <p class="lede tight">
-      Strategy <strong>{{ strategy.name }}</strong> · watch
+      <span class="pill">{{ strategy.name }}</span>
       <span data-watch-label>{{ portfolio.watch_symbol }}</span>
-      {% if watch_price %}<span class="mono">
-        ${{ watch_price|floatformat:2 }}</span
-      >{% endif %}
+      {% if watch_price %}<span class="mono"> ${{ watch_price|floatformat:2 }}</span>{% endif %}
+      <span data-watch-change class="mono"></span>
+      {% if open_alerts %}<span class="pill warn">{{ open_alerts }} alert{{ open_alerts|pluralize }}</span>{% endif %}
     </p>
   </div>
   <div class="metrics compact">
@@ -27,107 +28,104 @@ block content %}
         <small>({{ pnl_pct|floatformat:1 }}%)</small>
       </span>
     </div>
+    <div class="metric">
+      <span class="label">Win rate</span>
+      <span class="value">{{ stats.win_rate|floatformat:0 }}%</span>
+    </div>
   </div>
 </div>
 
 {% if price_error %}
-<ul class="flash">
-  <li class="error">Price feed: {{ price_error }}</li>
-</ul>
+<ul class="flash"><li class="error">Price feed: {{ price_error }}</li></ul>
 {% endif %}
 
-<div class="quote-tape">
-  {% for q in quote_rows %}
+<div class="quote-tape reveal delay-1">
+  {% for q in quotes %}
   <button type="button" class="tape-item" data-set-watch="{{ q.symbol }}">
     <span>{{ q.symbol }}</span>
     <span class="mono">${{ q.price|floatformat:2 }}</span>
+    <span class="mono tiny {% if q.change_pct >= 0 %}gain{% else %}loss{% endif %}">
+      {% if q.change_pct >= 0 %}+{% endif %}{{ q.change_pct|floatformat:2 }}%
+    </span>
   </button>
   {% endfor %}
 </div>
 
 <div class="grid platform">
-  <section class="panel span-8 chart-panel">
+  <section class="panel span-8 chart-panel reveal delay-2">
     <div class="panel-toolbar">
-      <h2>
-        Chart · <span data-watch-label>{{ portfolio.watch_symbol }}</span>
-      </h2>
-      <form
-        class="inline watch-form"
-        method="post"
-        action="{% url 'set_watch' %}"
-      >
+      <h2>Chart · <span data-watch-label>{{ portfolio.watch_symbol }}</span></h2>
+      <div class="range-toggle">
+        <button type="button" class="ghost sm {% if chart_days == '30' %}active{% endif %}" data-range="30">1M</button>
+        <button type="button" class="ghost sm {% if chart_days == '90' %}active{% endif %}" data-range="90">3M</button>
+        <button type="button" class="ghost sm {% if chart_days == '180' %}active{% endif %}" data-range="180">6M</button>
+        <button type="button" class="ghost sm {% if chart_days == '365' %}active{% endif %}" data-range="365">1Y</button>
+      </div>
+      <form class="inline watch-form" method="post" action="{% url 'set_watch' %}">
         {% csrf_token %}
-        <input
-          type="text"
-          name="symbol"
-          value="{{ portfolio.watch_symbol }}"
-          maxlength="16"
-          aria-label="Watch symbol"
-        />
+        <input type="text" name="symbol" value="{{ portfolio.watch_symbol }}" maxlength="16" aria-label="Watch symbol">
         <button type="submit" class="ghost sm">Load</button>
       </form>
     </div>
-    <div
-      id="watch-chart"
-      class="chart-box"
-      data-symbol="{{ portfolio.watch_symbol }}"
-      data-days="120"
-      data-height="400"
-    ></div>
+    <div id="watch-chart" class="chart-box" data-symbol="{{ portfolio.watch_symbol }}" data-days="{{ chart_days }}" data-height="420"></div>
   </section>
 
-  <section class="panel span-4">
+  <section class="panel span-4 reveal delay-2">
     <h2>Order ticket</h2>
     <form class="stack" method="post" action="{% url 'manual_trade' %}">
       {% csrf_token %}
-      <label>Action</label>
+      <label>Side</label>
       {{ trade_form.action }}
       <label>Symbol</label>
       {{ trade_form.symbol }}
       <label>Amount</label>
       {{ trade_form.amount }}
-      <p class="help">Buy = dollars. Sell = shares.</p>
-      <div class="actions">
-        <button type="submit">Submit</button>
-      </div>
+      <label>Note</label>
+      <input type="text" name="note" maxlength="200" placeholder="optional">
+      <p class="help">Buy = dollars to spend. Sell = share count. Fee: {{ portfolio.fee_bps }} bps.</p>
+      <div class="actions"><button type="submit">Submit order</button></div>
     </form>
 
-    <h2 style="margin-top: 1.2rem">Bot</h2>
+    <h2 class="mt">Bot controls</h2>
     <form class="stack" method="post" action="{% url 'set_strategy' %}">
       {% csrf_token %}
       <label>Active strategy</label>
       {{ strategy_form.strategy }}
-      <div class="actions">
-        <button type="submit" class="ghost">Apply</button>
-      </div>
+      <div class="actions"><button type="submit" class="ghost">Apply</button></div>
     </form>
-    <div class="actions" style="margin-top: 0.75rem">
-      <form method="post" action="{% url 'tick' %}">
-        {% csrf_token %}
-        <button type="submit">Run tick</button>
+    <div class="actions">
+      <form method="post" action="{% url 'tick' %}">{% csrf_token %}
+        <button type="submit">Run strategy tick</button>
       </form>
-      <form
-        method="post"
-        action="{% url 'reset' %}"
-        onsubmit="return confirm('Reset portfolio?');"
-      >
-        {% csrf_token %}
+      <form method="post" action="{% url 'reset' %}" onsubmit="return confirm('Reset portfolio?');">{% csrf_token %}
         <button type="submit" class="danger ghost">Reset</button>
       </form>
     </div>
     <p class="help">{{ strategy.blurb }}</p>
+
+    <h2 class="mt">Allocation</h2>
+    <div class="alloc-bars">
+      {% for a in alloc %}
+      <div class="alloc-row">
+        <span>{{ a.label }}</span>
+        <div class="bar"><i style="width:{{ a.pct|floatformat:1 }}%"></i></div>
+        <span class="mono tiny">{{ a.pct|floatformat:0 }}%</span>
+      </div>
+      {% endfor %}
+    </div>
   </section>
 
-  <section class="panel span-6">
-    <h2>Positions</h2>
+  <section class="panel span-6 reveal delay-3">
+    <div class="panel-toolbar">
+      <h2>Positions</h2>
+      <a class="btn ghost sm" href="{% url 'analytics' %}">Analytics</a>
+    </div>
     {% if positions %}
     <table>
       <thead>
         <tr>
-          <th>Symbol</th>
-          <th class="num">Shares</th>
-          <th class="num">Mark</th>
-          <th class="num">Value</th>
+          <th>Symbol</th><th class="num">Qty</th><th class="num">Avg</th>
+          <th class="num">Mark</th><th class="num">U. P&amp;L</th>
         </tr>
       </thead>
       <tbody>
@@ -135,11 +133,10 @@ block content %}
         <tr class="click-row" data-set-watch="{{ p.symbol }}">
           <td>{{ p.symbol }}</td>
           <td class="num">{{ p.shares|floatformat:4 }}</td>
-          <td class="num">
-            {% if p.price %}${{ p.price|floatformat:2 }}{% else %}—{% endif %}
-          </td>
-          <td class="num">
-            {% if p.value %}${{ p.value|floatformat:2 }}{% else %}—{% endif %}
+          <td class="num">${{ p.avg_cost|floatformat:2 }}</td>
+          <td class="num">{% if p.price %}${{ p.price|floatformat:2 }}{% else %}—{% endif %}</td>
+          <td class="num {% if p.unrealized and p.unrealized >= 0 %}gain{% elif p.unrealized %}loss{% endif %}">
+            {% if p.unrealized != None %}{% if p.unrealized >= 0 %}+{% endif %}${{ p.unrealized|floatformat:2 }}{% else %}—{% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -150,63 +147,55 @@ block content %}
     {% endif %}
   </section>
 
-  <section class="panel span-6">
-    <h2>Blotter</h2>
+  <section class="panel span-6 reveal delay-3">
+    <div class="panel-toolbar">
+      <h2>Recent fills</h2>
+      <a class="btn ghost sm" href="{% url 'blotter' %}">Full blotter</a>
+    </div>
     {% if recent_trades %}
     <div class="table-scroll">
       <table>
         <thead>
-          <tr>
-            <th>Time</th>
-            <th>Side</th>
-            <th>Sym</th>
-            <th class="num">Qty</th>
-            <th class="num">Px</th>
-            <th>Via</th>
-          </tr>
+          <tr><th>Time</th><th>Side</th><th>Sym</th><th class="num">Qty</th><th class="num">Px</th><th class="num">R. P&amp;L</th></tr>
         </thead>
         <tbody>
           {% for t in recent_trades %}
           <tr>
             <td>{{ t.created_at|date:"m-d H:i" }}</td>
-            <td>
-              <span
-                class="tag {% if t.action == 'BUY' %}tag-buy{% else %}tag-sell{% endif %}"
-                >{{ t.action }}</span
-              >
-            </td>
+            <td><span class="tag {% if t.action == 'BUY' %}tag-buy{% else %}tag-sell{% endif %}">{{ t.action }}</span></td>
             <td>{{ t.symbol }}</td>
             <td class="num">{{ t.shares|floatformat:4 }}</td>
             <td class="num">${{ t.price|floatformat:2 }}</td>
-            <td>{{ t.strategy|default:"—" }}</td>
+            <td class="num {% if t.realized_pnl and t.realized_pnl >= 0 %}gain{% elif t.realized_pnl %}loss{% endif %}">
+              {% if t.realized_pnl != None %}{{ t.realized_pnl|floatformat:2 }}{% else %}—{% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
     {% else %}
-    <p class="lede tight">No fills yet.</p>
+    <p class="lede tight">No fills yet — run a tick or place an order.</p>
     {% endif %}
   </section>
 </div>
-{% endblock %} {% block scripts %}
+{% endblock %}
+
+{% block scripts %}
 <script>
-  document.querySelectorAll("[data-set-watch]").forEach((el) => {
-    el.addEventListener("click", () => {
-      const sym = el.getAttribute("data-set-watch");
-      const input = document.querySelector(".watch-form input[name=symbol]");
-      if (input) input.value = sym;
-      const chart = document.getElementById("watch-chart");
-      if (chart && window.PaperCharts) {
-        chart.dataset.symbol = sym;
-        PaperCharts.loadWatch(chart, sym, 120);
-        document
-          .querySelectorAll("[data-watch-label]")
-          .forEach((n) => (n.textContent = sym));
-        const tradeSym = document.querySelector("#id_symbol");
-        if (tradeSym) tradeSym.value = sym;
-      }
-    });
+document.querySelectorAll("[data-set-watch]").forEach((el) => {
+  el.addEventListener("click", () => {
+    const sym = el.getAttribute("data-set-watch");
+    const input = document.querySelector(".watch-form input[name=symbol]");
+    if (input) input.value = sym;
+    const chart = document.getElementById("watch-chart");
+    if (chart && window.PaperCharts) {
+      chart.dataset.symbol = sym;
+      PaperCharts.loadWatch(chart, sym, chart.dataset.days || 90);
+      const tradeSym = document.querySelector("#id_symbol");
+      if (tradeSym) tradeSym.value = sym;
+    }
   });
+});
 </script>
 {% endblock %}

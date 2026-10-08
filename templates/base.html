@@ -15,21 +15,29 @@
 </head>
 <body class="{% block body_class %}{% endblock %}">
   <div class="bg-wash" aria-hidden="true"></div>
-  <header class="top">
-    <a class="brand" href="{% url 'dashboard' %}">Paper<span>Trader</span></a>
-    {% if user.is_authenticated %}
-    <nav>
-      <a href="{% url 'dashboard' %}">Desk</a>
-      <a href="{% url 'strategies' %}">Strategies</a>
-      <a href="{% url 'backtest' %}">Backtest</a>
-    </nav>
-    <div class="userbar">
-      <span class="user-chip">{{ user.username }}</span>
-      <form method="post" action="{% url 'logout' %}" class="inline">{% csrf_token %}
-        <button type="submit" class="ghost sm">Log out</button>
-      </form>
+  <header class="shell-top">
+    <div class="top">
+      <a class="brand" href="{% url 'dashboard' %}">Paper<span>Trader</span></a>
+      {% if user.is_authenticated %}
+      <nav class="main-nav">
+        <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Desk</a>
+        <a href="{% url 'markets' %}" class="{% if request.resolver_match.url_name == 'markets' %}active{% endif %}">Markets</a>
+        <a href="{% url 'analytics' %}" class="{% if request.resolver_match.url_name == 'analytics' %}active{% endif %}">Analytics</a>
+        <a href="{% url 'blotter' %}" class="{% if request.resolver_match.url_name == 'blotter' %}active{% endif %}">Blotter</a>
+        <a href="{% url 'backtest' %}" class="{% if request.resolver_match.url_name == 'backtest' %}active{% endif %}">Backtest</a>
+        <a href="{% url 'compare' %}" class="{% if request.resolver_match.url_name == 'compare' %}active{% endif %}">Compare</a>
+        <a href="{% url 'strategies' %}" class="{% if request.resolver_match.url_name == 'strategies' %}active{% endif %}">Strategies</a>
+        <a href="{% url 'journal' %}" class="{% if request.resolver_match.url_name == 'journal' %}active{% endif %}">Journal</a>
+        <a href="{% url 'leaderboard' %}" class="{% if request.resolver_match.url_name == 'leaderboard' %}active{% endif %}">Ranks</a>
+      </nav>
+      <div class="userbar">
+        <a class="user-chip" href="{% url 'settings' %}">{{ user.username }}</a>
+        <form method="post" action="{% url 'logout' %}" class="inline">{% csrf_token %}
+          <button type="submit" class="ghost sm">Log out</button>
+        </form>
+      </div>
+      {% endif %}
     </div>
-    {% endif %}
   </header>
 
   {% if messages %}
@@ -45,7 +53,7 @@
   </main>
 
   <footer class="foot">
-    Simulated money · real Yahoo Finance prices · for learning, not advice
+    SQLite paper account · Yahoo Finance prices · for learning, not advice
   </footer>
   {% block scripts %}{% endblock %}
 </body>

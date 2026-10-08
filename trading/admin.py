@@ -1,6 +1,15 @@
 from django.contrib import admin
 
-from .models import BacktestResult, Portfolio, Position, Trade
+from .models import (
+    BacktestResult,
+    EquitySnapshot,
+    JournalEntry,
+    Portfolio,
+    Position,
+    PriceAlert,
+    Trade,
+    WatchlistItem,
+)
 
 
 class PositionInline(admin.TabularInline):
@@ -8,24 +17,28 @@ class PositionInline(admin.TabularInline):
     extra = 0
 
 
-class TradeInline(admin.TabularInline):
-    model = Trade
+class WatchlistInline(admin.TabularInline):
+    model = WatchlistItem
     extra = 0
-    readonly_fields = ("action", "symbol", "shares", "price", "note", "strategy", "created_at")
 
 
 @admin.register(Portfolio)
 class PortfolioAdmin(admin.ModelAdmin):
-    list_display = ("user", "cash", "active_strategy", "watch_symbol", "updated_at")
-    inlines = [PositionInline, TradeInline]
+    list_display = ("user", "cash", "fee_bps", "active_strategy", "watch_symbol", "updated_at")
+    inlines = [PositionInline, WatchlistInline]
 
 
 @admin.register(Trade)
 class TradeAdmin(admin.ModelAdmin):
-    list_display = ("created_at", "portfolio", "action", "symbol", "shares", "price", "strategy")
+    list_display = ("created_at", "portfolio", "action", "symbol", "shares", "price", "fee", "realized_pnl", "strategy")
     list_filter = ("action", "strategy")
 
 
 @admin.register(BacktestResult)
 class BacktestResultAdmin(admin.ModelAdmin):
-    list_display = ("created_at", "user", "strategy", "days", "starting_cash", "ending_value", "trade_count")
+    list_display = ("created_at", "user", "strategy", "days", "ending_value", "max_drawdown_pct", "trade_count")
+
+
+admin.site.register(JournalEntry)
+admin.site.register(PriceAlert)
+admin.site.register(EquitySnapshot)

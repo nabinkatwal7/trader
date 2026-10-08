@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Markets · PaperTrader{% endblock %}
+{% block content %}
+<p class="hero-line reveal">Markets</p>
+<p class="lede reveal">Your watchlist with day and week moves. Set price alerts for the desk.</p>
+
+{% if error %}<ul class="flash"><li class="error">{{ error }}</li></ul>{% endif %}
+
+<div class="grid platform">
+  <section class="panel span-8 reveal delay-1">
+    <div class="panel-toolbar">
+      <h2>Watchlist · {{ watch_count }} symbols</h2>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Symbol</th><th class="num">Last</th><th class="num">Day</th><th class="num">Week</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for q in quotes %}
+        <tr>
+          <td><a href="{% url 'dashboard' %}?watch={{ q.symbol }}" class="sym-link">{{ q.symbol }}</a></td>
+          <td class="num">${{ q.price|floatformat:2 }}</td>
+          <td class="num {% if q.change_pct >= 0 %}gain{% else %}loss{% endif %}">
+            {% if q.change_pct >= 0 %}+{% endif %}{{ q.change_pct|floatformat:2 }}%
+          </td>
+          <td class="num {% if q.week_pct >= 0 %}gain{% else %}loss{% endif %}">
+            {% if q.week_pct >= 0 %}+{% endif %}{{ q.week_pct|floatformat:2 }}%
+          </td>
+          <td>
+            <form method="post" action="{% url 'watchlist_remove' q.symbol %}" class="inline">{% csrf_token %}
+              <button class="ghost sm" type="submit">Remove</button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">Watchlist empty — add a ticker.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="panel span-4 reveal delay-1">
+    <h2>Add symbol</h2>
+    <form class="stack" method="post" action="{% url 'watchlist_add' %}">
+      {% csrf_token %}
+      <label>Ticker</label>
+      {{ add_form.symbol }}
+      <div class="actions"><button type="submit">Add to watchlist</button></div>
+    </form>
+
+    <h2 class="mt">Price alert</h2>
+    <form class="stack" method="post" action="{% url 'alert_add' %}">
+      {% csrf_token %}
+      <label>Symbol</label>
+      {{ alert_form.symbol }}
+      <label>When price is</label>
+      {{ alert_form.direction }}
+      <label>Target $</label>
+      {{ alert_form.target }}
+      <div class="actions"><button type="submit">Create alert</button></div>
+    </form>
+
+    <h2 class="mt">Alerts</h2>
+    {% for a in alerts %}
+    <div class="alert-row">
+      <span class="mono">{{ a.symbol }} {{ a.direction }} ${{ a.target|floatformat:2 }}</span>
+      {% if a.triggered %}<span class="pill warn">hit</span>{% else %}<span class="pill">open</span>{% endif %}
+      <form method="post" action="{% url 'alert_delete' a.pk %}" class="inline">{% csrf_token %}
+        <button class="ghost sm" type="submit">×</button>
+      </form>
+    </div>
+    {% empty %}
+    <p class="help">No alerts yet.</p>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}

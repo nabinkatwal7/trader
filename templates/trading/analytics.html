@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Analytics · PaperTrader{% endblock %}
+{% block content %}
+<p class="hero-line reveal">Performance</p>
+<p class="lede reveal">Equity snapshots, win rate, fees, drawdown, and allocation — all from your SQLite paper book.</p>
+
+<div class="metrics compact reveal delay-1" style="margin-bottom:1rem">
+  <div class="metric"><span class="label">Equity</span><span class="value">${{ total|floatformat:2 }}</span></div>
+  <div class="metric"><span class="label">P&amp;L</span>
+    <span class="value {% if pnl >= 0 %}gain{% else %}loss{% endif %}">{% if pnl >= 0 %}+{% endif %}${{ pnl|floatformat:2 }}</span>
+  </div>
+  <div class="metric"><span class="label">Win rate</span><span class="value">{{ stats.win_rate|floatformat:1 }}%</span></div>
+  <div class="metric"><span class="label">Realized</span>
+    <span class="value {% if stats.realized_pnl >= 0 %}gain{% else %}loss{% endif %}">${{ stats.realized_pnl|floatformat:2 }}</span>
+  </div>
+  <div class="metric"><span class="label">Fees paid</span><span class="value">${{ stats.fees_paid|floatformat:2 }}</span></div>
+  <div class="metric"><span class="label">Max DD</span><span class="value loss">{{ dd|floatformat:1 }}%</span></div>
+</div>
+
+<div class="grid platform">
+  <section class="panel span-8 reveal delay-2">
+    <h2>Equity curve</h2>
+    <div id="analytics-chart" class="chart-box" data-height="360"></div>
+  </section>
+  <section class="panel span-4 reveal delay-2">
+    <h2>Allocation</h2>
+    <div class="alloc-bars">
+      {% for a in alloc %}
+      <div class="alloc-row">
+        <span>{{ a.label }}</span>
+        <div class="bar"><i style="width:{{ a.pct|floatformat:1 }}%"></i></div>
+        <span class="mono tiny">${{ a.value|floatformat:0 }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    <h2 class="mt">Trade quality</h2>
+    <table>
+      <tr><td>Sells</td><td class="num">{{ stats.sell_count }}</td></tr>
+      <tr><td>Wins / losses</td><td class="num">{{ stats.wins }} / {{ stats.losses }}</td></tr>
+      <tr><td>Avg win</td><td class="num gain">${{ stats.avg_win|floatformat:2 }}</td></tr>
+      <tr><td>Avg loss</td><td class="num loss">${{ stats.avg_loss|floatformat:2 }}</td></tr>
+    </table>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>window.__ANALYTICS_CHART__ = {{ equity_json|safe }};</script>
+{% endblock %}
