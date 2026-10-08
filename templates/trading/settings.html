@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Settings · PaperTrader{% endblock %}
+{% block content %}
+<p class="hero-line reveal">Account settings</p>
+<p class="lede reveal">Fees, starting cash, default chart range — stored in SQLite for {{ user.username }}.</p>
+
+<section class="panel span-6 reveal delay-1" style="max-width:520px">
+  <form class="stack" method="post">
+    {% csrf_token %}
+    <label>Commission (bps)</label>
+    {{ form.fee_bps }}
+    <p class="help">{{ form.fee_bps.help_text }}</p>
+    <label>Starting cash (used on reset)</label>
+    {{ form.starting_cash }}
+    <label>Default strategy</label>
+    {{ form.active_strategy }}
+    <label>Default chart range</label>
+    {{ form.chart_range }}
+    <div class="actions">
+      <button type="submit">Save</button>
+      <a class="btn ghost" href="{% url 'dashboard' %}">Back to desk</a>
+    </div>
+  </form>
+  <p class="help mt">Cash now: ${{ portfolio.cash|floatformat:2 }} · DB: db.sqlite3</p>
+</section>
+{% endblock %}

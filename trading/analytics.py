@@ -17,14 +17,15 @@ def max_drawdown_pct(equity_points: list[float]) -> float:
 
 
 def trade_stats(trades) -> dict:
-    """trades: iterable of Trade ordered any way."""
-    sells = [t for t in trades if t.action == "SELL" and t.realized_pnl is not None]
+    """trades: sequence of Trade."""
+    items = list(trades)
+    sells = [t for t in items if t.action == "SELL" and t.realized_pnl is not None]
     wins = [t for t in sells if t.realized_pnl > 0]
     losses = [t for t in sells if t.realized_pnl < 0]
     realized = sum(t.realized_pnl or 0 for t in sells)
-    fees = sum(t.fee for t in trades)
+    fees = sum(getattr(t, "fee", 0) or 0 for t in items)
     return {
-        "trade_count": len(list(trades)) if not isinstance(trades, list) else len(trades),
+        "trade_count": len(items),
         "sell_count": len(sells),
         "wins": len(wins),
         "losses": len(losses),

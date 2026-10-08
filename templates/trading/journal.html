@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Journal · PaperTrader{% endblock %}
+{% block content %}
+<p class="hero-line reveal">Trade journal</p>
+<p class="lede reveal">Write why you traded — the skill most platforms skip.</p>
+
+<div class="grid platform">
+  <section class="panel span-4 reveal delay-1">
+    <h2>New entry</h2>
+    <form class="stack" method="post">
+      {% csrf_token %}
+      <label>Title</label>{{ form.title }}
+      <label>Symbol (optional)</label>{{ form.symbol }}
+      <label>Mood</label>{{ form.mood }}
+      <label>Notes</label>{{ form.body }}
+      <div class="actions"><button type="submit">Save</button></div>
+    </form>
+  </section>
+  <section class="panel span-8 reveal delay-1">
+    <h2>Entries</h2>
+    {% for e in entries %}
+    <article class="journal-card">
+      <div class="panel-toolbar">
+        <h3>{{ e.title }} <span class="pill">{{ e.mood }}</span> {% if e.symbol %}<span class="tag">{{ e.symbol }}</span>{% endif %}</h3>
+        <form method="post" action="{% url 'journal_delete' e.pk %}">{% csrf_token %}
+          <button class="ghost sm" type="submit">Delete</button>
+        </form>
+      </div>
+      <p>{{ e.body }}</p>
+      <p class="help">{{ e.created_at|date:"Y-m-d H:i" }}</p>
+    </article>
+    {% empty %}
+    <p class="lede tight">No journal entries yet.</p>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}

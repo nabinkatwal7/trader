@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Ranks · PaperTrader{% endblock %}
+{% block content %}
+<p class="hero-line reveal">Paper ranks</p>
+<p class="lede reveal">How your simulated book stacks up against other accounts on this SQLite database.</p>
+
+<section class="panel reveal delay-1">
+  <table>
+    <thead>
+      <tr><th>#</th><th>Trader</th><th class="num">Equity</th><th class="num">Return</th><th class="num">Trades</th><th>Strategy</th></tr>
+    </thead>
+    <tbody>
+      {% for r in board %}
+      <tr {% if r.is_you %}class="winner"{% endif %}>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ r.username }}{% if r.is_you %} <span class="pill">you</span>{% endif %}</td>
+        <td class="num">${{ r.equity|floatformat:2 }}</td>
+        <td class="num {% if r.pnl_pct >= 0 %}gain{% else %}loss{% endif %}">{{ r.pnl_pct|floatformat:1 }}%</td>
+        <td class="num">{{ r.trades }}</td>
+        <td>{{ r.strategy }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="6">No portfolios yet.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

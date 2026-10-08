@@ -2,9 +2,9 @@
 {% block title %}Log in · PaperTrader{% endblock %}
 {% block body_class %}auth{% endblock %}
 {% block content %}
-<section class="auth-panel">
+<section class="auth-panel reveal">
   <p class="brand-hero">Paper<span>Trader</span></p>
-  <p class="lede">Sign in to your simulated desk.</p>
+  <p class="lede">Sign in to your simulated desk. Data lives in local SQLite.</p>
   <form class="stack" method="post">
     {% csrf_token %}
     {% if form.non_field_errors %}

@@ -1,28 +1,26 @@
 {% extends "base.html" %}
 {% block title %}Backtest · PaperTrader{% endblock %}
 {% block content %}
-<p class="hero-line">Strategy lab</p>
-<p class="lede">Replay rules over recent history. Equity curve + buy/sell markers on the primary ticker.</p>
+<p class="hero-line reveal">Strategy lab</p>
+<p class="lede reveal">Replay rules over recent history. Does not touch your live paper portfolio.
+  <a href="{% url 'compare' %}">Compare multiple →</a>
+</p>
 
 <div class="grid platform">
-  <section class="panel span-4">
+  <section class="panel span-4 reveal delay-1">
     <h2>Setup</h2>
     <form class="stack" method="post">
       {% csrf_token %}
-      <label>Strategy</label>
-      {{ form.strategy }}
-      <label>Symbols</label>
-      {{ form.symbols }}
+      <label>Strategy</label>{{ form.strategy }}
+      <label>Symbols</label>{{ form.symbols }}
       <p class="help">{{ form.symbols.help_text }}</p>
-      <label>Days</label>
-      {{ form.days }}
-      <label>Starting cash</label>
-      {{ form.cash }}
+      <label>Days</label>{{ form.days }}
+      <label>Starting cash</label>{{ form.cash }}
       <div class="actions"><button type="submit">Run backtest</button></div>
     </form>
   </section>
 
-  <section class="panel span-8">
+  <section class="panel span-8 reveal delay-1">
     <h2>Result</h2>
     {% if result %}
     <div class="metrics compact">
@@ -44,19 +42,23 @@
         {% endwith %}
       </div>
       <div class="metric">
+        <span class="label">Max DD</span>
+        <span class="value loss">{{ result.outcome.max_drawdown_pct|floatformat:1 }}%</span>
+      </div>
+      <div class="metric">
         <span class="label">Trades</span>
         <span class="value">{{ result.outcome.trade_count }}</span>
       </div>
     </div>
     <div id="backtest-chart" class="chart-box" data-height="340" style="margin-top:0.85rem"></div>
-    <p class="help">Teal area = portfolio equity · gray line = {{ result.outcome.symbols.0 }} price · arrows = signals</p>
+    <p class="help">Teal = equity · gray = {{ result.outcome.symbols.0 }} · arrows = signals</p>
     {% else %}
-    <p class="lede tight">Run a backtest to see the equity curve.</p>
+    <p class="lede tight">Run a backtest to see the equity curve. Compare against Buy &amp; Hold.</p>
     {% endif %}
   </section>
 
   {% if result %}
-  <section class="panel span-6">
+  <section class="panel span-6 reveal delay-2">
     <h2>End holdings</h2>
     <p>Cash ${{ result.outcome.final_cash|floatformat:2 }}</p>
     {% if result.final_rows %}
@@ -75,8 +77,7 @@
     </table>
     {% endif %}
   </section>
-
-  <section class="panel span-6">
+  <section class="panel span-6 reveal delay-2">
     <h2>Trade log</h2>
     <div class="event-log">
       {% for e in result.outcome.events %}
@@ -88,14 +89,14 @@
   </section>
   {% endif %}
 
-  <section class="panel span-12">
+  <section class="panel span-12 reveal delay-3">
     <h2>Your recent backtests</h2>
     {% if history %}
     <table>
       <thead>
         <tr>
           <th>When</th><th>Strategy</th><th>Symbols</th><th class="num">Days</th>
-          <th class="num">Start</th><th class="num">End</th><th class="num">P&amp;L %</th><th class="num">Trades</th>
+          <th class="num">End</th><th class="num">P&amp;L %</th><th class="num">Max DD</th><th class="num">Trades</th>
         </tr>
       </thead>
       <tbody>
@@ -105,9 +106,9 @@
           <td>{{ h.strategy }}</td>
           <td>{{ h.symbols }}</td>
           <td class="num">{{ h.days }}</td>
-          <td class="num">${{ h.starting_cash|floatformat:0 }}</td>
           <td class="num">${{ h.ending_value|floatformat:2 }}</td>
           <td class="num {% if h.pnl >= 0 %}gain{% else %}loss{% endif %}">{{ h.pnl_pct|floatformat:1 }}%</td>
+          <td class="num loss">{{ h.max_drawdown_pct|floatformat:1 }}%</td>
           <td class="num">{{ h.trade_count }}</td>
         </tr>
         {% endfor %}
@@ -119,7 +120,6 @@
   </section>
 </div>
 {% endblock %}
-
 {% block scripts %}
 <script>window.__BACKTEST_CHART__ = {{ chart_json|safe }};</script>
 {% endblock %}

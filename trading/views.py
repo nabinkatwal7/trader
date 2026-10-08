@@ -86,6 +86,11 @@ def signup(request):
 @login_required
 def dashboard(request):
     portfolio = get_or_create_portfolio(request.user)
+    if request.GET.get("watch"):
+        sym = request.GET["watch"].strip().upper()
+        portfolio.watch_symbol = sym
+        portfolio.save(update_fields=["watch_symbol", "updated_at"])
+        WatchlistItem.objects.get_or_create(portfolio=portfolio, symbol=sym)
     watched = list(portfolio.watchlist.values_list("symbol", flat=True)) or list(settings.DEFAULT_SYMBOLS)
     held = list(portfolio.positions.values_list("symbol", flat=True))
     price_symbols = sorted(set(watched) | set(held) | {portfolio.watch_symbol})

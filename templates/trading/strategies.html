@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Strategies · Paper Trader{% endblock %}
+{% block title %}Strategies · PaperTrader{% endblock %}
 {% block content %}
-<p class="hero-line">How each strategy thinks</p>
-<p class="lede">
-  Same prices, different rules. Read the lesson, then backtest to see which ideas
-  would have made or lost simulated money.
+<p class="hero-line reveal">How each strategy thinks</p>
+<p class="lede reveal">Same prices, different rules.
+  <a href="{% url 'compare' %}">Race them</a> ·
+  <a href="{% url 'backtest' %}">Backtest one</a>
 </p>
 
-<section class="panel span-12">
+<section class="panel reveal delay-1">
   <div class="strategy-list">
     {% for s in strategies %}
     <article class="strategy-card">
@@ -16,10 +16,6 @@
       <p class="lesson">{{ s.lesson }}</p>
     </article>
     {% endfor %}
-  </div>
-  <div class="actions" style="margin-top:1.25rem">
-    <a class="btn" href="{% url 'backtest' %}">Run a backtest</a>
-    <a class="btn ghost" href="{% url 'dashboard' %}">Back to desk</a>
   </div>
 </section>
 {% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Compare · PaperTrader{% endblock %}
+{% block content %}
+<p class="hero-line reveal">Strategy race</p>
+<p class="lede reveal">Run several rules on the same symbols and cash — see who wins on return and drawdown.</p>
+
+<div class="grid platform">
+  <section class="panel span-4 reveal delay-1">
+    <h2>Setup</h2>
+    <form class="stack" method="post">
+      {% csrf_token %}
+      <label>Strategies</label>
+      <div class="check-grid">{{ form.strategies }}</div>
+      {% if form.strategies.errors %}<p class="help loss">{{ form.strategies.errors|striptags }}</p>{% endif %}
+      <label>Symbols</label>{{ form.symbols }}
+      <label>Days</label>{{ form.days }}
+      <label>Cash</label>{{ form.cash }}
+      <div class="actions"><button type="submit">Race them</button></div>
+    </form>
+  </section>
+  <section class="panel span-8 reveal delay-1">
+    <h2>Results</h2>
+    {% if rows %}
+    <div id="compare-chart" class="chart-box" data-height="340"></div>
+    <table style="margin-top:1rem">
+      <thead>
+        <tr><th>#</th><th>Strategy</th><th class="num">Final</th><th class="num">Return</th><th class="num">Max DD</th><th class="num">Trades</th></tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr {% if forloop.first %}class="winner"{% endif %}>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ r.name }}</td>
+          <td class="num">${{ r.ending|floatformat:2 }}</td>
+          <td class="num {% if r.pnl_pct >= 0 %}gain{% else %}loss{% endif %}">{{ r.pnl_pct|floatformat:1 }}%</td>
+          <td class="num loss">{{ r.dd|floatformat:1 }}%</td>
+          <td class="num">{{ r.trades }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="lede tight">Pick at least two strategies and run the race.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>window.__COMPARE_CHART__ = {{ chart_json|safe }};</script>
+{% endblock %}
